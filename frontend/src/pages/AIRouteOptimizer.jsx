@@ -622,7 +622,7 @@ const AIRouteOptimizer = () => {
           <div className="flex items-center justify-center mb-4">
             <Map className="h-8 w-8 text-blue-600 mr-3" />
             <h1 className="text-4xl font-bold text-gray-800">
-              AI Route Optimizer
+              Clear Route AI
             </h1>
           </div>
           <p className="text-lg text-gray-600">

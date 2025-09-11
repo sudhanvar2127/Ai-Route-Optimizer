@@ -1,107 +1,122 @@
-import React, { createContext, useState, useContext, useEffect } from "react";
-import axios from 'axios';
+import React, { createContext, useContext, useState, useEffect } from "react";
 
-export const AuthContext = createContext();
+const AuthContext = createContext();
 
-// Create the axios instance that will be shared
-const apiClient = axios.create({
-    baseURL: 'http://localhost:5000/api',
-});
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
 
-// This is the provider component, now named AuthProvider
-export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem("token") || null);
-    const [loading, setLoading] = useState(true);
+const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(localStorage.getItem("token"));
 
-    // This effect runs once when the app loads to restore session
-    useEffect(() => {
-        const storedToken = localStorage.getItem("token");
-        if (storedToken) {
-            setToken(storedToken);
-            // Set the Authorization header for all future API calls
-            apiClient.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
+  // Check if user is logged in on app start
+  useEffect(() => {
+    if (token) {
+      verifyToken();
+    } else {
+      setLoading(false);
+    }
+  }, [token]);
 
-            const storedUser = localStorage.getItem("user");
-            if (storedUser) {
-                try {
-                    setUser(JSON.parse(storedUser));
-                } catch (e) {
-                    console.error("Could not parse user from localStorage", e);
-                }
-            }
-        }
-        // Finished the initial check, allow the rest of the app to render
-        setLoading(false);
-    }, []);
+  // In your AuthContext.jsx, make sure verifyToken sends the header properly:
+  const verifyToken = async () => {
+    console.log("Token being sent:", token); // Debug log
 
-    // --- Authentication Functions ---
+    try {
+      const response = await fetch("http://localhost:8000/auth/verify", {
+        headers: {
+          Authorization: `Bearer ${token}`, // ← Must be exactly this format
+          "Content-Type": "application/json",
+        },
+      });
 
-    const signup = async (email, password) => {
-        try {
-            const response = await apiClient.post("/auth/signup", { email, password });
-            const { token, ...userData } = response.data;
+      console.log("Response status:", response.status); // Debug log
 
-            localStorage.setItem("token", token);
-            localStorage.setItem("user", JSON.stringify(userData));
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        console.error("Auth failed:", await response.text()); // Debug log
+      }
+    } catch (error) {
+      console.error("Token verification failed:", error);
+    }
+  };
 
-            setToken(token);
-            setUser(userData);
-            apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-            return response.data;
-        } catch (error) {
-            console.error("Signup Error:", error.response ? error.response.data : error.message);
-            throw error.response?.data || new Error("Signup failed");
-        }
-    };
+  const login = async (email, password) => {
+    try {
+      const response = await fetch("http://localhost:8000/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    const login = async (email, password) => {
-        try {
-            const response = await apiClient.post("/auth/login", { email, password });
-            const { token, ...userData } = response.data;
+      const data = await response.json();
 
-            localStorage.setItem("token", token);
-            localStorage.setItem("user", JSON.stringify(userData));
+      if (response.ok) {
+        localStorage.setItem("token", data.token);
+        setToken(data.token);
+        setUser(data.user);
+        return { success: true, message: "Login successful!" };
+      } else {
+        return { success: false, message: data.message || "Login failed" };
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      return { success: false, message: "Network error. Please try again." };
+    }
+  };
 
-            setToken(token);
-            setUser(userData);
-            apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-            return response.data;
-        } catch (error) {
-            console.error("Login Error:", error.response ? error.response.data : error.message);
-            throw error.response?.data || new Error("Login failed");
-        }
-    };
+  const signup = async (name, email, password) => {
+    try {
+      const response = await fetch("http://localhost:8000/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-    const logout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setUser(null);
-        setToken(null);
-        delete apiClient.defaults.headers.common["Authorization"];
-    };
+      const data = await response.json();
 
-    // The value provided to the rest of the app
-    const value = {
-        user,
-        token,
-        loading,
-        signup,
-        login,
-        logout,
-        apiClient, // Pass the apiClient instance itself
-    };
+      if (response.ok) {
+        localStorage.setItem("token", data.token);
+        setToken(data.token);
+        setUser(data.user);
+        return { success: true, message: "Account created successfully!" };
+      } else {
+        return { success: false, message: data.message || "Signup failed" };
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      return { success: false, message: "Network error. Please try again." };
+    }
+  };
 
-    return (
-        <AuthContext.Provider value={value}>
-            {!loading && children}
-        </AuthContext.Provider>
-    );
+  const logout = () => {
+    localStorage.removeItem("token");
+    setToken(null);
+    setUser(null);
+  };
+
+  const value = {
+    user,
+    login,
+    signup,
+    logout,
+    loading,
+    isAuthenticated: !!user,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export default AuthProvider;
-
-// Custom hook for easy consumption
-export const useAuth = () => {
-    return useContext(AuthContext);
-};

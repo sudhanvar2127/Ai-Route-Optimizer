@@ -13,6 +13,8 @@ import requests
 from datetime import datetime
 import math
 import random
+from auth import auth_router
+from database import init_db
 
 # Configure logging
 logging.basicConfig(
@@ -36,6 +38,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+init_db()
+app.include_router(auth_router)
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     """Calculate distance between two points using Haversine formula"""
