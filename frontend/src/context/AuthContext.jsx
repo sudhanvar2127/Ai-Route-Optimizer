@@ -15,37 +15,48 @@ const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem("token"));
 
-  // Check if user is logged in on app start
+  console.log("AuthContext state:", { user, loading, token }); // Debug log
+
   useEffect(() => {
+    console.log("useEffect triggered, token:", token); // Debug log
+
     if (token) {
       verifyToken();
     } else {
+      console.log("No token, setting loading to false"); // Debug log
       setLoading(false);
     }
-  }, [token]);
+  }, [token]); // Make sure dependencies are correct
 
-  // In your AuthContext.jsx, make sure verifyToken sends the header properly:
   const verifyToken = async () => {
-    console.log("Token being sent:", token); // Debug log
+    console.log("Verifying token..."); // Debug log
 
     try {
       const response = await fetch("http://localhost:8000/auth/verify", {
         headers: {
-          Authorization: `Bearer ${token}`, // ← Must be exactly this format
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
 
-      console.log("Response status:", response.status); // Debug log
+      console.log("Verify response:", response.status); // Debug log
 
       if (response.ok) {
         const userData = await response.json();
+        console.log("User data received:", userData); // Debug log
         setUser(userData);
       } else {
-        console.error("Auth failed:", await response.text()); // Debug log
+        console.log("Token verification failed"); // Debug log
+        localStorage.removeItem("token");
+        setToken(null);
       }
     } catch (error) {
-      console.error("Token verification failed:", error);
+      console.error("Token verification error:", error);
+      localStorage.removeItem("token");
+      setToken(null);
+    } finally {
+      console.log("Setting loading to false"); // Debug log
+      setLoading(false); // ← CRITICAL: Always set loading to false
     }
   };
 
