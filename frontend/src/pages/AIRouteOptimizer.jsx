@@ -19,6 +19,8 @@ const AIRouteOptimizer = () => {
   });
   const [endCoords, setEndCoords] = useState({ latitude: "", longitude: "" });
   const [waypoints, setWaypoints] = useState([]);
+  const [departureTime, setDepartureTime] = useState("");
+  const [zones, setZones] = useState([]);
   const [routeResults, setRouteResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [liveTraffic, setLiveTraffic] = useState(null);
@@ -38,6 +40,13 @@ const AIRouteOptimizer = () => {
     pune: { latitude: 18.5204, longitude: 73.8567 },
     chennai: { latitude: 13.0827, longitude: 80.2707 },
   };
+
+  // Initialize zones and departure time
+  useEffect(() => {
+    const now = new Date();
+    setDepartureTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+    fetch(`${API_BASE_URL}/zones/all`).then(res => res.json()).then(data => setZones(data.zones || [])).catch(err => console.error(err));
+  }, []);
 
   // Initialize Leaflet map
   useEffect(() => {
@@ -449,6 +458,7 @@ const AIRouteOptimizer = () => {
         latitude: endLat,
         longitude: endLng,
       },
+      departure_time: departureTime,
       waypoints: waypoints
         .filter((wp) => wp.latitude && wp.longitude)
         .map((wp) => ({
@@ -706,6 +716,21 @@ const AIRouteOptimizer = () => {
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   />
                 </div>
+              </div>
+
+
+              {/* Departure Time */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Clock className="h-4 w-4 inline mr-1 text-purple-600" />
+                  Departure Time
+                </label>
+                <input
+                  type="time"
+                  value={departureTime}
+                  onChange={(e) => setDepartureTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
               </div>
 
               {/* Waypoints */}
